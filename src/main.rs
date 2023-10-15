@@ -2,7 +2,7 @@ use eyre::eyre;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::TcpListener;
 
-use tracing::{debug, error, info, Level};
+use tracing::{debug, info, Level};
 use tracing_subscriber::FmtSubscriber;
 
 use color_eyre::Result;
@@ -44,11 +44,10 @@ async fn main() -> Result<()> {
             loop {
                 let n = match socket.read(&mut buf).await {
                     // socket closed
-                    Ok(n) if n == 0 => return,
+                    Ok(n) if n == 0 => return Ok(()),
                     Ok(n) => n,
                     Err(e) => {
-                        error!("failed to read from socket; err = {:?}", e);
-                        return;
+                        return Err(eyre!(format!("failed to read from socket; err = {:?}", e)));
                     }
                 };
 
@@ -66,12 +65,10 @@ async fn main() -> Result<()> {
                                 .replace("$hostname", client_addr.ip().to_string().as_str()) // TODO: remove the weird template system
                                 .as_bytes(),
                         )
-                        .await
-                        .unwrap(),
+                        .await?,
+                    Command::NoOp => socket.write_all(messages::OK).await?,
                     _ => todo!(),
                 }
-
-                Ok(())
             }
         });
     }
